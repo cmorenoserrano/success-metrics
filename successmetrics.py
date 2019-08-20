@@ -2,6 +2,7 @@
 from datetime import *
 import requests
 import json
+import pandas
 
 #Let's get the current year and week - These will be needed to query IQ server for success metrics
 #start by figuring out today
@@ -26,6 +27,10 @@ for counter in range(1,cur_week+2):
     raw_data = resp.json()
     with open("raw_data.json",'w') as f:
         json.dump(raw_data,f)
+
+    df = pandas.read_json(resp.text)
+    df.to_csv("raw_data.csv")
+    
     #print(resp.content)
     for iq_app in resp.json():
         date_start = str(iq_app['aggregations'][0]['timePeriodStart'])
