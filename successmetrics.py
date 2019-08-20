@@ -23,6 +23,9 @@ for counter in range(1,cur_week+2):
     r_body = '{"timePeriod": "WEEK","firstTimePeriod": "'+ time_period + '","lastTimePeriod": "' + time_period + '"}'
     #print r_body
     resp = requests.post(iq_url, auth=(iq_user, iq_password) ,data=r_body, headers={'Content-Type':'application/json', 'Accept':'application/json'})
+    raw_data = resp.json()
+    with open("raw_data.json",'w') as f:
+        json.dump(raw_data,f)
     #print(resp.content)
     for iq_app in resp.json():
         date_start = str(iq_app['aggregations'][0]['timePeriodStart'])
