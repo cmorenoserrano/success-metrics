@@ -196,10 +196,16 @@ MttrSevWk = 0
 MttrCri = 0
 MttrCriWk = 0
 
+EvalCount = 0
+EvalCountWk = 0
+
 
 for counter in range(1,cur_week+2):  #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
     df = pd.read_json("raw_data_wk"+str(counter)+".json",typ='dict')
     for app in df:
+        EvalCountWk = app['aggregations'][0]['evaluationCount']
+        
+
         MttrLowWk = app['aggregations'][0]['mttrLowThreat']
         if(isinstance(MttrLowWk,int)):
             MttrLowWk = round(MttrLowWk/86400000) #converting from ms to days
@@ -311,6 +317,10 @@ for counter in range(1,cur_week+2):  #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
         OpeOthSevWk = app['aggregations'][0]['openCountsAtTimePeriodEnd']['OTHER']['SEVERE']
         OpeOthCriWk = app['aggregations'][0]['openCountsAtTimePeriodEnd']['OTHER']['CRITICAL']
         
+
+    EvalCount += EvalCountWk
+
+    
 
     MttrLow += MttrLowWk
     MttrMod += MttrModWk
@@ -425,10 +435,6 @@ FixAll = FixLow + FixMod + FixSev + FixCri
 WaiAll =  WaiLow + WaiMod + WaiSev + WaiCri
 OpeAll = OpeLow + OpeMod + OpeSev + OpeCri
 
-#print(str(MttrLow))
-#print(str(MttrMod))
-#print(str(MttrSev))
-#print(str(MttrCri))
 
 if OpeAll !=0:
     DeaRateAll = (FixAll+WaiAll)/OpeAll*100
@@ -631,6 +637,11 @@ else:
     FixRateOthCri = 0
     WaiRateOthCri = 0
     DeaRateOthCri = 0
+
+
+print("--------------------------------------------------------------------------------------------------------------------------------------------------")
+
+print("\nWeekly rolling average YTD Number of Evaluations (scans/week): "+str(round(EvalCount/counter,2))+ " scans/week\n")
 
 print("--------------------------------------------------------------------------------------------------------------------------------------------------")
 
