@@ -1,8 +1,18 @@
-#This script will add Success Metrics for the current year to include metrics up to 'last week'
+
+########################################################################################################################
+#This script is property of Sonatype. Contact: cmorenoserrano@sonatype.com
+#This script will collect Success Metrics counters using the IQ Server Success Metrics API v2 and process them into...
+#...meaningful Outcome-based success metrics. Data is pulled YTD (from ISO week 1 to the last fully completed ISO week)
+########################################################################################################################
+
 from datetime import *
 import requests
 import json
 import pandas as pd
+import matplotlib.pyplot as plt
+from pylab import title, figure, xlabel, ylabel, xticks, bar, legend, axis, savefig
+from fpdf import FPDF
+import numpy as np
 
 #Let's get the current year and week - These will be needed to query IQ server for success metrics
 #start by figuring out today
@@ -17,7 +27,7 @@ iq_password = 'qgrrDd6b'
 iq_url = 'http://localhost:8070/api/v2/reports/metrics'
 
 
-#First we generate the JSON and CSV files for each week YTD
+#First we generate the JSON and (optionally) CSV files for each week YTD
 for counter in range(1,cur_week+2): #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
     #print("\nSuccess Metrics for Week "+ str(counter) + ":" + "\n")
     #set the time period
@@ -29,8 +39,8 @@ for counter in range(1,cur_week+2): #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
     with open("raw_data_wk"+str(counter)+".json",'w') as f:
         json.dump(raw_data,f)
 
-    df = pd.read_json(resp.text)
-    df.to_csv("raw_data_wk"+str(counter)+".csv")
+    #df = pd.read_json(resp.text)                       #Remove the hash to activate generation of CSV files
+    #df.to_csv("raw_data_wk"+str(counter)+".csv")       #Remove the hash to activate generation of CSV files
 
     #print(df.head(10))
 
@@ -200,11 +210,17 @@ EvalCount = 0
 EvalCountWk = 0
 
 
+FixRateAll = []
+WaiRateAll = []
+DealtRateAll = []
+EvalsCount = []
+weeks = []
+
 for counter in range(1,cur_week+2):  #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
     df = pd.read_json("raw_data_wk"+str(counter)+".json",typ='dict')
     for app in df:
         EvalCountWk = app['aggregations'][0]['evaluationCount']
-        
+
 
         MttrLowWk = app['aggregations'][0]['mttrLowThreat']
         if(isinstance(MttrLowWk,int)):
@@ -316,8 +332,25 @@ for counter in range(1,cur_week+2):  #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
         OpeOthModWk = app['aggregations'][0]['openCountsAtTimePeriodEnd']['OTHER']['MODERATE']
         OpeOthSevWk = app['aggregations'][0]['openCountsAtTimePeriodEnd']['OTHER']['SEVERE']
         OpeOthCriWk = app['aggregations'][0]['openCountsAtTimePeriodEnd']['OTHER']['CRITICAL']
-        
 
+
+    weeks.append(str(counter))  
+    EvalsCount.append(round(EvalCountWk))
+
+    FixAllWk = FixSecLowWk + FixSecModWk + FixSecSevWk + FixSecCriWk + FixLicLowWk + FixLicModWk + FixLicSevWk + FixLicCriWk + FixQuaLowWk + FixQuaModWk + FixQuaSevWk + FixQuaCriWk + FixOthLowWk + FixOthModWk + FixOthSevWk + FixOthCriWk
+    WaiAllWk = WaiSecLowWk + WaiSecModWk + WaiSecSevWk + WaiSecCriWk + WaiLicLowWk + WaiLicModWk + WaiLicSevWk + WaiLicCriWk + WaiQuaLowWk + WaiQuaModWk + WaiQuaSevWk + WaiQuaCriWk + WaiOthLowWk + WaiOthModWk + WaiOthSevWk + WaiOthCriWk
+    OpeAllWk = OpeSecLowWk + OpeSecModWk + OpeSecSevWk + OpeSecCriWk + OpeLicLowWk + OpeLicModWk + OpeLicSevWk + OpeLicCriWk + OpeQuaLowWk + OpeQuaModWk + OpeQuaSevWk + OpeQuaCriWk + OpeOthLowWk + OpeOthModWk + OpeOthSevWk + OpeOthCriWk
+
+    if OpeAllWk != 0:
+        FixRateAll.append(round(FixAllWk/OpeAllWk*100,2))
+        WaiRateAll.append(round(WaiAllWk/OpeAllWk*100,2))
+        DealtRateAll.append(round((FixAllWk+WaiAllWk)/OpeAllWk*100,2))
+        
+    else:
+        FixRateAll.append(0)
+        WaiRateAll.append(0)
+        DealtRateAll.append(0)
+            
     EvalCount += EvalCountWk
 
     
@@ -415,6 +448,7 @@ for counter in range(1,cur_week+2):  #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
     OpeOthSev += OpeOthSevWk
     OpeOthCri += OpeOthCriWk
     
+
 
 FixLow = FixSecLow + FixLicLow + FixQuaLow + FixOthLow
 FixMod = FixSecMod + FixLicMod + FixQuaMod + FixOthMod
@@ -639,6 +673,77 @@ else:
     DeaRateOthCri = 0
 
 
+#PLOTTING GRAPHS AND SAVING THEM INTO PDF REPORT
+
+N = cur_week+1
+ind = np.arange(N)
+width = 0.35
+
+#print(plt.gcf().canvas.get_supported_filetypes())
+plt.figure(figsize=(9,5)) #9 and 5 in inches
+p1 = plt.bar(ind,EvalsCount,width)
+plt.xlabel('Week number')
+plt.ylabel('Total Number of Evaluations/week')
+plt.title("Total Number of Evaluations (scans/week) week-on-week")
+plt.xticks(ind,weeks)
+#plt.show() #if we show, we cannot save afterwards
+plt.savefig('EvalCount.png',orientation='landscape')
+
+plt.figure(figsize=(9,5)) #9 and 5 in inches
+p1 = plt.bar(ind,FixRateAll,width)
+plt.xlabel('Week number')
+plt.ylabel('Average Fix Rate (%)')
+plt.title("Average Fix Rate (%) week-on-week")
+plt.xticks(ind,weeks)
+#plt.show() #if we show, we cannot save afterwards
+plt.savefig('FixRateAll.png',orientation='landscape')
+
+plt.figure(figsize=(9,5)) #9 and 5 in inches
+p1 = plt.bar(ind,WaiRateAll,width)
+plt.xlabel('Week number')
+plt.ylabel('Average Waive Rate (%)')
+plt.title("Average Waive Rate (%) week-on-week")
+plt.xticks(ind,weeks)
+#plt.show() #if we show, we cannot save afterwards
+plt.savefig('WaiRateAll.png',orientation='landscape')
+
+plt.figure(figsize=(9,5)) #9 and 5 in inches
+p1 = plt.bar(ind,FixRateAll,width)
+plt.xlabel('Week number')
+plt.ylabel('Average Dealt-with Rate (%)')
+plt.title("Average Dealt-with Rate (%) week-on-week")
+plt.xticks(ind,weeks)
+#plt.show() #if we show, we cannot save afterwards
+plt.savefig('DealtRateAll.png',orientation='landscape')
+
+
+pdf = FPDF()
+pdf.add_page('L')
+pdf.set_xy(0,0)
+pdf.set_font('arial','B',12)
+pdf.image('EvalCount.png', x = None, y = None, w = 0, h = 0, type = '', link = '')
+
+pdf.add_page('L')
+pdf.set_xy(0,0)
+pdf.image('FixRateAll.png', x = None, y = None, w = 0, h = 0, type = '', link = '')
+
+pdf.add_page('L')
+pdf.set_xy(0,0)
+pdf.image('WaiRateAll.png', x = None, y = None, w = 0, h = 0, type = '', link = '')
+
+pdf.add_page('L')
+pdf.set_xy(0,0)
+pdf.image('DealtRateAll.png', x = None, y = None, w = 0, h = 0, type = '', link = '')
+
+pdf.output('successmetrics.pdf', 'F')
+
+
+
+#----------------------------------------------------------------------
+
+
+
+
 print("--------------------------------------------------------------------------------------------------------------------------------------------------")
 
 print("\nWeekly rolling average YTD Number of Evaluations (scans/week): "+str(round(EvalCount/counter,2))+ " scans/week\n")
@@ -811,7 +916,7 @@ print("-------------------------------------------------------------------------
 print("--------------------------------------------------------------------------------------------------------------------------------------------------")
 print("\nWeekly rolling average YTD Dealt-with Rate ((fixedCounts + waivedCounts) / openCountsAtTimePeriodEnd) Aggregated All: "+str(round(DeaRateAll,2))+"%\n")
 print("--------------------------------------------------------------------------------------------------------------------------------------------------")
-print("--------------------------------------------------------------------------------------------------------------------------------------------------")
+print("--------------------------------------------------------------------------------------------------------------------------------------------------\n")
 
 #All Success Metrics are Weekly Rolling Average YTD
 #Dump all of them into JSON dictionary
@@ -943,6 +1048,10 @@ SuccessMetrics = {
 with open("successmetrics.json",'w') as f:
         json.dump(SuccessMetrics,f)
 
-
 #print(json.dumps(SuccessMetrics))
+
+
+
+    
+
 
