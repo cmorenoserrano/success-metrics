@@ -13,6 +13,29 @@ import matplotlib.pyplot as plt
 from pylab import title, figure, xlabel, ylabel, xticks, bar, legend, axis, savefig
 from fpdf import FPDF
 import numpy as np
+import time
+
+# Print iterations progress
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print('\r%s |%s| %s%% %s' % (prefix, bar, percent, suffix), end = '\r')
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
+
 
 #Let's get the current year and week - These will be needed to query IQ server for success metrics
 #start by figuring out today
@@ -28,6 +51,7 @@ iq_url = 'http://localhost:8070/api/v2/reports/metrics'
 
 
 #First we generate the JSON and (optionally) CSV files for each week YTD
+printProgressBar(0,cur_week+2,prefix = 'Progress:', suffix = 'Complete', length = 50)   #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
 for counter in range(1,cur_week+2): #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
     #print("\nSuccess Metrics for Week "+ str(counter) + ":" + "\n")
     #set the time period
@@ -38,6 +62,8 @@ for counter in range(1,cur_week+2): #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
     raw_data = resp.json()
     with open("raw_data_wk"+str(counter)+".json",'w') as f:
         json.dump(raw_data,f)
+    time.sleep(0.1)
+    printProgressBar(counter,cur_week+2,prefix = 'Progress:', suffix = 'Complete', length = 50) #DO NOT FORGET TO SET WEEK+2 BACK TO WEEK+1
 
     #df = pd.read_json(resp.text)                       #Remove the hash to activate generation of CSV files
     #df.to_csv("raw_data_wk"+str(counter)+".csv")       #Remove the hash to activate generation of CSV files
