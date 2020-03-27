@@ -37,6 +37,9 @@ def main():
         parser.add_argument('-i','--appId',  help='', required=False)
         parser.add_argument('-o','--orgId',  help='', required=False)
         parser.add_argument('-p','--pretty', help='', action='store_true', required=False)
+        parser.add_argument('-r','--reports', help='', action='store_true',required=False)
+        parser.add_argument('-rs','--reportsSec', help='', action='store_true',required=False)
+        parser.add_argument('-rl','--reportsLic', help='', action='store_true',required=False)
 
         args = vars(parser.parse_args())
         creds = args["auth"].split(":")
@@ -136,6 +139,8 @@ def main():
                                 value = app_summary[mttr]["rng"][position]
                                 if not value is None:
                                         reportAverages[mttr][week_no].append( value )
+                                        reportAveragesLic[mttr][week_no].append( value )
+                                        reportAveragesSec[mttr][week_no].append( value )
 
                         if app_summary["evaluationCount"]["rng"][position] != 0:
                                 reportCounts["appNumberScan"][week_no] += 1
@@ -213,6 +218,41 @@ def main():
         reportSummary.update({'riskRatioSevere' : riskRatioSev})
         reportSummary.update({'riskRatioModerate' : riskRatioMod})
         reportSummary.update({'riskRatioLow' : riskRatioLow})
+#-----------------------------------------------------------------------------------------
+        riskRatioCri, riskRatioSev, riskRatioMod, riskRatioLow = [],[],[],[]
+        for week_no in range(0,len(reportLic['weeks'])):
+                if reportLic['appOnboard'][week_no] != 0:
+                        riskRatioCri.append(str(round((reportLic['openCountsAtTimePeriodEnd']['CRITICAL'][week_no])/(reportLic['appOnboard'][week_no]),2)))
+                        riskRatioSev.append(str(round((reportLic['openCountsAtTimePeriodEnd']['SEVERE'][week_no])/(reportLic['appOnboard'][week_no]),2)))
+                        riskRatioMod.append(str(round((reportLic['openCountsAtTimePeriodEnd']['MODERATE'][week_no])/(reportLic['appOnboard'][week_no]),2)))
+                        riskRatioLow.append(str(round((reportLic['openCountsAtTimePeriodEnd']['LOW'][week_no])/(reportLic['appOnboard'][week_no]),2)))
+                else:
+                        riskRatioCri.append(str(0))
+                        riskRatioSev.append(str(0))
+                        riskRatioMod.append(str(0))
+                        riskRatioLow.append(str(0))
+        reportLic.update({'riskRatioCritical' : riskRatioCri})
+        reportLic.update({'riskRatioSevere' : riskRatioSev})
+        reportLic.update({'riskRatioModerate' : riskRatioMod})
+        reportLic.update({'riskRatioLow' : riskRatioLow})
+#-----------------------------------------------------------------------------------------
+        riskRatioCri, riskRatioSev, riskRatioMod, riskRatioLow = [],[],[],[]
+        for week_no in range(0,len(reportSec['weeks'])):
+                if reportSec['appOnboard'][week_no] != 0:
+                        riskRatioCri.append(str(round((reportSec['openCountsAtTimePeriodEnd']['CRITICAL'][week_no])/(reportSec['appOnboard'][week_no]),2)))
+                        riskRatioSev.append(str(round((reportSec['openCountsAtTimePeriodEnd']['SEVERE'][week_no])/(reportSec['appOnboard'][week_no]),2)))
+                        riskRatioMod.append(str(round((reportSec['openCountsAtTimePeriodEnd']['MODERATE'][week_no])/(reportSec['appOnboard'][week_no]),2)))
+                        riskRatioLow.append(str(round((reportSec['openCountsAtTimePeriodEnd']['LOW'][week_no])/(reportSec['appOnboard'][week_no]),2)))
+                else:
+                        riskRatioCri.append(str(0))
+                        riskRatioSev.append(str(0))
+                        riskRatioMod.append(str(0))
+                        riskRatioLow.append(str(0))
+        reportSec.update({'riskRatioCritical' : riskRatioCri})
+        reportSec.update({'riskRatioSevere' : riskRatioSev})
+        reportSec.update({'riskRatioModerate' : riskRatioMod})
+        reportSec.update({'riskRatioLow' : riskRatioLow})
+#-----------------------------------------------------------------------------------------
         
         # Final report with summary and data objects.
         report = {"summary": reportSummary, "apps": data, "licences": reportLic, "security": reportSec}
@@ -222,7 +262,7 @@ def main():
 
         ## make an output directory
         os.makedirs("output", exist_ok=True)
-
+        print("Generating successmetrics.json")
         with open("output/successmetrics.json",'w') as f:
                 if args["pretty"]:
                         f.write(json.dumps(report, indent=4))
@@ -230,6 +270,25 @@ def main():
                         json.dump(report, f)
         print( "saved to output/successmetrics.json" )
         #-----------------------------------------------------------------------------------
+        # one more thing...
+        if args["reports"] == True:
+                print("Generating the Executive report")
+                os.system('python3 ./reports.py -e')
+                print("Generating the Table report")
+                os.system('python3 ./reports.py -t')
+                
+        if args["reportsSec"] == True:
+                print("Generating the Executive report just for Security violations")
+                os.system('python3 ./reports.py -es')
+                print("Generating the Table report just for Security violations")
+                os.system('python3 ./reports.py -ts')
+                
+        if args["reportsLic"] == True:
+                print("Generating the Executive report just for Licensing violations")
+                os.system('python3 ./reports.py -el')
+                print("Generating the Table report just for Licensing violations")
+                os.system('python3 ./reports.py -tl')
+                
         #-----------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------
